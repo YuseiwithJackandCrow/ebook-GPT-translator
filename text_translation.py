@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+import argparse
+import chardet
 import pdfminer.high_level
 import re
 import openai
@@ -89,7 +91,8 @@ def convert_mobi_to_text(mobi_filename):
                 continue
             break
         else:
-            raise FileNotFoundError("HTML file not found in the extracted MOBI contents")
+            raise FileNotFoundError(
+                "HTML file not found in the extracted MOBI contents")
 
         # Parse the HTML file with BeautifulSoup to get the text
         with open(html_file, "r", encoding="utf-8") as f:
@@ -114,8 +117,6 @@ def get_epub_title(epub_filename):
     # 读取option文件
 
 
-import chardet
-
 with open('settings.cfg', 'rb') as f:
     content = f.read()
     encoding = chardet.detect(content)['encoding']
@@ -126,12 +127,12 @@ with open('settings.cfg', encoding=encoding) as f:
     config.read_string(config_text)
 
 # 获取openai_apikey和language
-openai_apikey = config.get('option', 'openai-apikey')
-# language_name = config.get('option', 'target-language')
+openai_apikey = "sk-lIr8I173VkdOHtW7fzTkmZeMJbpBMuy8AED6CUJugd2ZkcsF"
+# language_name = config.get('option', 'target-language')cd
 prompt = config.get('option', 'prompt')
 bilingual_output = config.get('option', 'bilingual-output')
 language_code = config.get('option', 'langcode')
-api_proxy=config.get('option', 'openai-proxy')
+api_proxy = config.get('option', 'openai-proxy')
 # Get startpage and endpage as integers with default values
 startpage = config.getint('option', 'startpage', fallback=1)
 endpage = config.getint('option', 'endpage', fallback=-1)
@@ -146,12 +147,14 @@ openai.api_key = openai_apikey
 # 将openai的API密钥分割成数组
 key_array = openai_apikey.split(',')
 
+
 def random_api_key():
     return random.choice(key_array)
 
+
 def create_chat_completion(prompt, text, model="gpt-3.5-turbo", **kwargs):
     openai.api_key = random_api_key()
-    return openai.ChatCompletion.create(
+    return openai.chat.completions.create(
         model=model,
         messages=[
             {
@@ -162,22 +165,26 @@ def create_chat_completion(prompt, text, model="gpt-3.5-turbo", **kwargs):
         **kwargs
     )
 
-import argparse
 
 # 如果配置文件有写，就设置api代理
-if len(api_proxy) == 0:
-    print("未检测到OpenAI API 代理，当前使用api地址为: " + openai.api_base)
-else:
-    api_proxy_url = api_proxy + "/v1"
-    openai.api_base = os.environ.get("OPENAI_API_BASE", api_proxy_url)
-    print("正在使用OpenAI API 代理，代理地址为: "+openai.api_base)
+# if len(api_proxy) == 0:
+#     print("未检测到OpenAI API 代理，当前使用api地址为: " + openai.api_base)
+#     print('111',openai.api_base)
+# else:
+#     api_proxy_url = api_proxy
+#     openai.api_base = os.environ.get("OPENAI_API_BASE", api_proxy_url)
+#     print("正在使用OpenAI API 代理，代理地址为: "+openai.api_base)
+openai.base_url = "https://api.chatanywhere.tech"
+openai.default_headers = {"x-foo": "true"}
 
 # 创建参数解析器
 parser = argparse.ArgumentParser()
 parser.add_argument("filename", help="Name of the input file")
-parser.add_argument("--test", help="Only translate the first 3 short texts", action="store_true")
+parser.add_argument(
+    "--test", help="Only translate the first 3 short texts", action="store_true")
 # 是否使用译名表？
-parser.add_argument("--tlist", help="Use the translated name table", action="store_true")
+parser.add_argument(
+    "--tlist", help="Use the translated name table", action="store_true")
 args = parser.parse_args()
 
 # 获取命令行参数
@@ -232,7 +239,8 @@ def text_to_epub(text, filename, language_code='en', title="Title"):
     book.set_language(language_code)
 
     # 创建章节对象
-    c = epub.EpubHtml(title='Chapter 1', file_name='chap_1.xhtml', lang=language_code)
+    c = epub.EpubHtml(title='Chapter 1',
+                      file_name='chap_1.xhtml', lang=language_code)
     c.content = text
 
     # 将章节添加到书籍中
@@ -267,10 +275,12 @@ def convert_pdf_to_text(pdf_filename, start_page=1, end_page=-1):
         end_page = get_total_pages(pdf_filename)
         # print("Total pages of the file:"+ str(end_page))
         # print("Converting PDF from:"+ str(start_page)+" to "+ str(end_page) + " page")
-        text = pdfminer.high_level.extract_text(pdf_filename, page_numbers=list(range(start_page - 1, end_page)))
+        text = pdfminer.high_level.extract_text(
+            pdf_filename, page_numbers=list(range(start_page - 1, end_page)))
     else:
         # print("Converting PDF from:"+ str(start_page)+" to "+ str(end_page) + " page")
-        text = pdfminer.high_level.extract_text(pdf_filename, page_numbers=list(range(start_page - 1, end_page)))
+        text = pdfminer.high_level.extract_text(
+            pdf_filename, page_numbers=list(range(start_page - 1, end_page)))
     return text
 
 
@@ -316,15 +326,16 @@ def translate_text(text):
     try:
         completion = create_chat_completion(prompt, text)
         t_text = (
-            completion["choices"][0]
-            .get("message")
-            .get("content")
-            .encode("utf8")
-            .decode()
+            # completion["choices"][0]
+            # .get("message")
+            # .get("content")
+            # .encode("utf8")
+            # .decode()
+            completion.choices[0].message.content.encode("utf8").decode()
         )
         # Get the token usage from the API response
-        cost_tokens += completion["usage"]["total_tokens"]
-
+        # cost_tokens += completion["usage"]["total_tokens"]
+        cost_tokens += completion.usage.total_tokens
     except Exception as e:
         import time
         # TIME LIMIT for open api please pay
@@ -334,14 +345,16 @@ def translate_text(text):
 
         completion = create_chat_completion(prompt, text)
         t_text = (
-            completion["choices"][0]
-            .get("message")
-            .get("content")
-            .encode("utf8")
-            .decode()
+            # completion["choices"][0]
+            # .get("message")
+            # .get("content")
+            # .encode("utf8")
+            # .decode()
+            completion.choices[0].message.content.encode("utf8").decode()
         )
         # Get the token usage from the API response
-        cost_tokens += completion["usage"]["total_tokens"]
+        # cost_tokens += completion["usage"]["total_tokens"]
+        cost_tokens += completion.usage.total_tokens
 
     return t_text
 
@@ -368,7 +381,8 @@ def text_replace(long_string, xlsx_path, case_sensitive):
     old_words = df.iloc[:, 0].tolist()
     new_words = df.iloc[:, 1].tolist()
     # 对旧词列表按照长度降序排序，并同步调整新词列表
-    old_words, new_words = zip(*sorted(zip(old_words, new_words), key=lambda x: len(x[0]), reverse=True))
+    old_words, new_words = zip(
+        *sorted(zip(old_words, new_words), key=lambda x: len(x[0]), reverse=True))
     # 遍历两个列表，对字符串进行替换
     for i in range(len(old_words)):
         # 如果不区分大小写，就将字符串和被替换词都转为小写
@@ -376,10 +390,12 @@ def text_replace(long_string, xlsx_path, case_sensitive):
             lower_string = long_string.lower()
             lower_old_word = old_words[i].lower()
             # 使用正则表达式进行替换，注意要保留原字符串的大小写
-            long_string = re.sub(r"\b" + lower_old_word + r"\b", new_words[i], long_string, flags=re.IGNORECASE)
+            long_string = re.sub(r"\b" + lower_old_word + r"\b",
+                                 new_words[i], long_string, flags=re.IGNORECASE)
         # 如果区分大小写，就直接使用正则表达式进行替换
         else:
-            long_string = re.sub(r"\b" + old_words[i] + r"\b", new_words[i], long_string)
+            long_string = re.sub(
+                r"\b" + old_words[i] + r"\b", new_words[i], long_string)
     # 返回替换后的字符串
     return long_string
 
@@ -451,7 +467,8 @@ if filename.endswith('.epub'):
 
             # 如果设置了译名表替换，则对文本进行翻译前的替换
             if args.tlist:
-                text = text_replace(text, transliteration_list_file, case_matching)
+                text = text_replace(
+                    text, transliteration_list_file, case_matching)
 
             # 将文本分成不大于1024字符的短文本list
             short_text_list = split_text(text)
@@ -477,7 +494,8 @@ if filename.endswith('.epub'):
                 # print(short_text)
                 print(translated_short_text)
             # 使用翻译后的文本替换原有的章节内容
-            item.set_content((img_html + translated_text.replace('\n', '<br>')).encode('utf-8'))
+            item.set_content(
+                (img_html + translated_text.replace('\n', '<br>')).encode('utf-8'))
             translated_all += translated_text
             if args.test and count >= 3:
                 break
@@ -525,7 +543,8 @@ else:
 
     # 将翻译后的文本写入epub文件
     with tqdm(total=10, desc="Writing translated text to epub") as pbar:
-        text_to_epub(translated_text.replace('\n', '<br>'), new_filename, language_code, title)
+        text_to_epub(translated_text.replace('\n', '<br>'),
+                     new_filename, language_code, title)
         pbar.update(1)
 
     # 将翻译后的文本同时写入txt文件 in case epub插件出问题
